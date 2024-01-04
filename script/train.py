@@ -31,7 +31,8 @@ def train_and_validate(cfg, solver, scheduler):
         kwargs = cfg.train.copy()
         kwargs["num_epoch"] = min(step, cfg.train.num_epoch - i)
         solver.train(**kwargs)
-        # solver.save("model_epoch_%d.pth" % solver.epoch)
+        if cfg.get('save_ckpt', False):
+            solver.save("model_epoch_%d.pth" % solver.epoch)
         metric = solver.evaluate("valid")
         test_metric = solver.evaluate("test")
         result = metric[cfg.metric]

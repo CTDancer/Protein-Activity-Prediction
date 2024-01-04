@@ -2,11 +2,14 @@ output_dir: ~/scratch/jingao/Protein-Activity-Prediction/output
 
 dataset:
   class: V5
-  path: ~/scratch/jingao/Protein-Activity-Prediction/data/20230927_2k
-  label_file: 20230927tada.csv
+  # path: ~/scratch/jingao/Protein-Activity-Prediction/data/20230927_2k
+  # label_file: 20230927tada_balanced.csv
+  path: ~/scratch/jingao/Protein-Activity-Prediction/data/20231208_2k
+  label_file: 20231208tada_train.csv
   atom_feature: null
   bond_feature: null
-  split_ratio: [0.8, 0.1, 0.1]
+  split_ratio: [0.998, 0.001, 0.001]
+  # split_ratio: [0.7, 0.1, 0.2]
   transform:
     class: ProteinView
     view: residue
@@ -45,7 +48,7 @@ task:
         min_distance: 5
     edge_feature: gearnet
   criterion: mse
-  metric: ['mae', 'rmse', 'spearmanr', 'pearsonr']
+  metric: ['mae', 'rmse', 'pearsonr']
   num_mlp_layer: 3
 
 optimizer:
@@ -59,7 +62,9 @@ engine:
 
 sequence_model_lr_ratio: 0.1
 
-metric: spearmanr [activity]
+metric: root mean squared error [activity]
 
 train:
-  num_epoch: 20
+  num_epoch: 100
+
+save_ckpt: True

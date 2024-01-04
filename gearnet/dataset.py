@@ -51,14 +51,14 @@ class V5(data.ProteinDataset):
 
     processed_file = "v5.pkl.gz"
 
-    def __init__(self, path, split_ratio=(0.6, 0.2, 0.2), discrete_label=False, verbose=1, **kwargs):
+    def __init__(self, path, split_ratio=(0.6, 0.2, 0.2), discrete_label=False, verbose=1, label_file='20230927tada_balanced.csv', **kwargs):
         path = os.path.expanduser(path)
         if not os.path.exists(path):
             os.makedirs(path)
         self.path = path
         self.split_ratio = split_ratio
         self.discrete_label = discrete_label
-
+        
         pkl_file = os.path.join(path, self.processed_file)
 
         if os.path.exists(pkl_file):
@@ -68,9 +68,11 @@ class V5(data.ProteinDataset):
             self.load_pdbs(pdb_files, verbose=verbose, **kwargs)
             self.save_pickle(pkl_file, verbose=verbose)
 
-        label_file = os.path.join(path, "20230927tada.csv")
-        label_list = self.get_label_list(label_file)
-        activitity = [label_list[os.path.basename(pdb_file)[:-4]] for pdb_file in self.pdb_files]
+        # for balance
+        self.name2data = {os.path.basename(self.pdb_files[i])[:-4]: i for i in range(len(self.pdb_files))}
+        label_file = os.path.join(path, label_file)
+        self.label_list, self.label_dict = self.get_label_list(label_file)
+        activitity = [self.label_dict[name] for name in self.label_list]
         self.targets = {"activity": activitity}
         if self.discrete_label:
             num_labels = defaultdict(int)
@@ -105,15 +107,17 @@ class V5(data.ProteinDataset):
     def get_label_list(self, label_file):
         with open(label_file, "r") as fin:
             lines = [line.strip() for line in fin.readlines()][2:]
-        label_list = {}
+        label_dict = {}
+        label_list = []
         for line in lines:
             name, sequence, activity = line.split(",")
             activity = float(activity)
             if self.discrete_label:
-                label_list[name] = (activity > 5)
+                label_dict[name] = (activity > 5)
             else:
-                label_list[name] = activity
-        return label_list
+                label_dict[name] = activity
+            label_list.append(name)
+        return label_list, label_dict
 
     def split(self, split_ratio=None):
         split_ratio = split_ratio or self.split_ratio
@@ -123,6 +127,8 @@ class V5(data.ProteinDataset):
         return splits
     
     def get_item(self, index):
+        name = self.label_list[index]
+        index = self.name2data[name]
         if self.lazy:
             protein = data.Protein.from_pdb(self.pdb_files[index], self.kwargs)
         else:
@@ -130,11 +136,13 @@ class V5(data.ProteinDataset):
         if hasattr(protein, "residue_feature"):
             with protein.residue():
                 protein.residue_feature = protein.residue_feature.to_dense()
-        item = {"graph": protein, "activity": self.targets["activity"][index]}
+        item = {"graph": protein, "activity": self.label_dict[name]}
         if self.transform:
             item = self.transform(item)
         return item
     
+    def __len__(self):
+        return len(self.label_list)
 
 @R.register("datasets.V5Batch")
 class V5Batch(data.ProteinDataset):
